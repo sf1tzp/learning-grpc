@@ -1,9 +1,10 @@
 use anyhow::{anyhow, Result};
+use tokio_stream::wrappers::ReceiverStream;
 use tonic::{transport::Server, Request, Response, Status, Streaming};
 
 use learning_grpc::protobuf::routeguide::{
     route_guide_server::{RouteGuide, RouteGuideServer},
-    Feature, Point, RouteSummary,
+    Feature, Point, Rectangle, RouteSummary,
 };
 
 #[derive(Debug, Default)]
@@ -31,6 +32,14 @@ impl RouteGuide for RouteServer {
         &self,
         request: Request<Streaming<Point>>,
     ) -> Result<Response<RouteSummary>, Status> {
+        unimplemented!()
+    }
+
+    type ListFeaturesStream = ReceiverStream<Result<Feature, Status>>;
+    async fn list_features(
+        &self,
+        request: Request<Rectangle>,
+    ) -> Result<Response<Self::ListFeaturesStream>, Status> {
         unimplemented!()
     }
 }
