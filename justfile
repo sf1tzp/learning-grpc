@@ -7,7 +7,7 @@ generate-go:
     --go_opt=paths=source_relative \
     --go-grpc_out=go \
     --go-grpc_opt=paths=source_relative \
-    protobuf/helloworld/helloworld.proto
+    protobuf/**/*.proto
 
 go-server:
     #!/usr/bin/env bash
@@ -28,3 +28,8 @@ rust-client:
     #!/usr/bin/env bash
     cd rust
     cargo run --bin client
+
+rust-server:
+    #!/usr/bin/env bash
+    cd rust
+    cargo run --bin server

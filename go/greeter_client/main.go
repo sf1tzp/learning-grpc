@@ -26,6 +26,7 @@ import (
 	"time"
 
 	hw "github.com/sf1tzp/learning-grpc/go/protobuf/helloworld"
+	rg "github.com/sf1tzp/learning-grpc/go/protobuf/routeguide"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -64,4 +65,22 @@ func main() {
 		log.Fatalf("could not greet: %v", err)
 	}
 	log.Printf("Greeting: %s", r.GetMessage())
+
+	// Route guide
+
+	conn2, err := grpc.Dial("localhost:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("did not connect 3: %v", err)
+	}
+
+	defer conn2.Close()
+	c2 := rg.NewRouteGuideClient(conn2)
+	ctx2, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	r2, err := c2.GetFeature(ctx2, &rg.Point{Latitude: 409146138, Longitude: -746188906})
+	if err != nil {
+		log.Fatalf("could not get features: %v", err)
+	}
+	log.Printf("Features at: %s", r2.String())
 }

@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+option go_package = "github.com/sf1tzp/learning-grpc/protobuf/routeguide";
+
+package routeguide;
+
+service RouteGuide {
+    rpc GetFeature(Point) returns (Feature) {}
+    // rpc ListFeatures(Rectangle) returns (stream Feature) {}
+    // rpc RecordRoute(stream Point) returns (RouteSummary) {}
+    // rpc RouteChat(stream RouteNote) returns (stream RouteNote) {}
+}
+
+message Point {
+    int32 latitude = 1;
+    int32 longitude = 2;
+}
+
+message Rectangle {
+    Point TopLeft = 1;
+    Point BottomRight = 2;
+}
+
+message Feature {
+    Point Location = 1;
+    string Name = 2;
+}
+
+message RouteNote {
+    Point Location = 1;
+    string Message = 2;
+}
+
+message RouteSummary {
+    int32 PointCount = 1;
+    int32 FeatureCount = 2;
+    int32 Distance = 3;
+    int32 ElapsedTime = 4;
+}
