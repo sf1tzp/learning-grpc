@@ -38,12 +38,12 @@ async fn main() -> Result<()> {
 
     let mut client = match RouteGuideClient::connect("http://localhost:50052").await {
         Ok(client) => client,
-        Err(e) => return Err(anyhow!("Error {e}"))
+        Err(e) => return Err(anyhow!("Error {e}")),
     };
 
     let request = Point {
-        latitude: 1,
-        longitude: 1,
+        latitude: 1.0,
+        longitude: 1.0,
     };
 
     match client.get_feature(request).await {

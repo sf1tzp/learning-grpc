@@ -1,10 +1,10 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Point {
-    #[prost(int32, tag = "1")]
-    pub latitude: i32,
-    #[prost(int32, tag = "2")]
-    pub longitude: i32,
+    #[prost(double, tag = "3")]
+    pub latitude: f64,
+    #[prost(double, tag = "4")]
+    pub longitude: f64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -149,6 +149,29 @@ pub mod route_guide_client {
                 .insert(GrpcMethod::new("routeguide.RouteGuide", "GetFeature"));
             self.inner.unary(req, path, codec).await
         }
+        /// rpc ListFeatures(Rectangle) returns (stream Feature) {}
+        pub async fn record_route(
+            &mut self,
+            request: impl tonic::IntoStreamingRequest<Message = super::Point>,
+        ) -> std::result::Result<tonic::Response<super::RouteSummary>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/routeguide.RouteGuide/RecordRoute",
+            );
+            let mut req = request.into_streaming_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("routeguide.RouteGuide", "RecordRoute"));
+            self.inner.client_streaming(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -162,6 +185,11 @@ pub mod route_guide_server {
             &self,
             request: tonic::Request<super::Point>,
         ) -> std::result::Result<tonic::Response<super::Feature>, tonic::Status>;
+        /// rpc ListFeatures(Rectangle) returns (stream Feature) {}
+        async fn record_route(
+            &self,
+            request: tonic::Request<tonic::Streaming<super::Point>>,
+        ) -> std::result::Result<tonic::Response<super::RouteSummary>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct RouteGuideServer<T: RouteGuide> {
@@ -280,6 +308,52 @@ pub mod route_guide_server {
                                 max_encoding_message_size,
                             );
                         let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/routeguide.RouteGuide/RecordRoute" => {
+                    #[allow(non_camel_case_types)]
+                    struct RecordRouteSvc<T: RouteGuide>(pub Arc<T>);
+                    impl<
+                        T: RouteGuide,
+                    > tonic::server::ClientStreamingService<super::Point>
+                    for RecordRouteSvc<T> {
+                        type Response = super::RouteSummary;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<tonic::Streaming<super::Point>>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                (*inner).record_route(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = RecordRouteSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.client_streaming(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
