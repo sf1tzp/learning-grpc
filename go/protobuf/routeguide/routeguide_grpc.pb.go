@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	RouteGuide_GetFeature_FullMethodName  = "/routeguide.RouteGuide/GetFeature"
-	RouteGuide_RecordRoute_FullMethodName = "/routeguide.RouteGuide/RecordRoute"
+	RouteGuide_GetFeature_FullMethodName   = "/routeguide.RouteGuide/GetFeature"
+	RouteGuide_ListFeatures_FullMethodName = "/routeguide.RouteGuide/ListFeatures"
+	RouteGuide_RecordRoute_FullMethodName  = "/routeguide.RouteGuide/RecordRoute"
 )
 
 // RouteGuideClient is the client API for RouteGuide service.
@@ -28,7 +29,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type RouteGuideClient interface {
 	GetFeature(ctx context.Context, in *Point, opts ...grpc.CallOption) (*Feature, error)
-	// rpc ListFeatures(Rectangle) returns (stream Feature) {}
+	ListFeatures(ctx context.Context, in *Rectangle, opts ...grpc.CallOption) (RouteGuide_ListFeaturesClient, error)
 	RecordRoute(ctx context.Context, opts ...grpc.CallOption) (RouteGuide_RecordRouteClient, error)
 }
 
@@ -49,8 +50,40 @@ func (c *routeGuideClient) GetFeature(ctx context.Context, in *Point, opts ...gr
 	return out, nil
 }
 
+func (c *routeGuideClient) ListFeatures(ctx context.Context, in *Rectangle, opts ...grpc.CallOption) (RouteGuide_ListFeaturesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &RouteGuide_ServiceDesc.Streams[0], RouteGuide_ListFeatures_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &routeGuideListFeaturesClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type RouteGuide_ListFeaturesClient interface {
+	Recv() (*Feature, error)
+	grpc.ClientStream
+}
+
+type routeGuideListFeaturesClient struct {
+	grpc.ClientStream
+}
+
+func (x *routeGuideListFeaturesClient) Recv() (*Feature, error) {
+	m := new(Feature)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *routeGuideClient) RecordRoute(ctx context.Context, opts ...grpc.CallOption) (RouteGuide_RecordRouteClient, error) {
-	stream, err := c.cc.NewStream(ctx, &RouteGuide_ServiceDesc.Streams[0], RouteGuide_RecordRoute_FullMethodName, opts...)
+	stream, err := c.cc.NewStream(ctx, &RouteGuide_ServiceDesc.Streams[1], RouteGuide_RecordRoute_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +121,7 @@ func (x *routeGuideRecordRouteClient) CloseAndRecv() (*RouteSummary, error) {
 // for forward compatibility
 type RouteGuideServer interface {
 	GetFeature(context.Context, *Point) (*Feature, error)
-	// rpc ListFeatures(Rectangle) returns (stream Feature) {}
+	ListFeatures(*Rectangle, RouteGuide_ListFeaturesServer) error
 	RecordRoute(RouteGuide_RecordRouteServer) error
 	mustEmbedUnimplementedRouteGuideServer()
 }
@@ -99,6 +132,9 @@ type UnimplementedRouteGuideServer struct {
 
 func (UnimplementedRouteGuideServer) GetFeature(context.Context, *Point) (*Feature, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFeature not implemented")
+}
+func (UnimplementedRouteGuideServer) ListFeatures(*Rectangle, RouteGuide_ListFeaturesServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListFeatures not implemented")
 }
 func (UnimplementedRouteGuideServer) RecordRoute(RouteGuide_RecordRouteServer) error {
 	return status.Errorf(codes.Unimplemented, "method RecordRoute not implemented")
@@ -132,6 +168,27 @@ func _RouteGuide_GetFeature_Handler(srv interface{}, ctx context.Context, dec fu
 		return srv.(RouteGuideServer).GetFeature(ctx, req.(*Point))
 	}
 	return interceptor(ctx, in, info, handler)
+}
+
+func _RouteGuide_ListFeatures_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Rectangle)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(RouteGuideServer).ListFeatures(m, &routeGuideListFeaturesServer{stream})
+}
+
+type RouteGuide_ListFeaturesServer interface {
+	Send(*Feature) error
+	grpc.ServerStream
+}
+
+type routeGuideListFeaturesServer struct {
+	grpc.ServerStream
+}
+
+func (x *routeGuideListFeaturesServer) Send(m *Feature) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _RouteGuide_RecordRoute_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -173,6 +230,11 @@ var RouteGuide_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "ListFeatures",
+			Handler:       _RouteGuide_ListFeatures_Handler,
+			ServerStreams: true,
+		},
 		{
 			StreamName:    "RecordRoute",
 			Handler:       _RouteGuide_RecordRoute_Handler,

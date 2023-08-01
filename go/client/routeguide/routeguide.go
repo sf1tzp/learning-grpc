@@ -2,6 +2,7 @@ package routeguide
 
 import (
 	"context"
+	"io"
 
 	pb "github.com/sf1tzp/learning-grpc/go/protobuf/routeguide"
 	"google.golang.org/grpc"
@@ -53,4 +54,44 @@ func (c *RouteGuideClient) GetRouteDistance(ctx context.Context, points []struct
 		return 0, err
 	}
 	return response.Distance, nil
+}
+
+func (c *RouteGuideClient) ListFeatures(ctx context.Context, area struct {
+	TopLeft struct {
+		Latitude  float64
+		Longitude float64
+	}
+	BottomRight struct {
+		Latitude  float64
+		Longitude float64
+	}
+}) ([]string, error) {
+	var features []string
+	rectangle := &pb.Rectangle{
+		TopLeft: &pb.Point{
+			Latitude:  area.TopLeft.Latitude,
+			Longitude: area.TopLeft.Longitude,
+		},
+		BottomRight: &pb.Point{
+			Latitude:  area.BottomRight.Latitude,
+			Longitude: area.BottomRight.Longitude,
+		},
+	}
+
+	stream, err := c.client.ListFeatures(ctx, rectangle)
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		feature, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		features = append(features, feature.GetName())
+	}
+	return features, nil
 }

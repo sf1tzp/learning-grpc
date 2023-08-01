@@ -16,15 +16,15 @@ type server struct {
 }
 
 var KnownFeatures = map[struct {
-	Latitude  int32
-	Longitude int32
+	Latitude  int64
+	Longitude int64
 }]string{
 	// Using ints for lat/long values to try to avoid floating point rounding errors.
 	{Latitude: 386270000, Longitude: -901994000}: "Saint Louis",
-	{Latitude: 397391999, Longitude: -104990300}: "Denver", // Although Devner's still weird
-	{Latitude: 327157000, Longitude: -117161100}: "San Diego",
-	{Latitude: 377749000, Longitude: -122419400}: "San Francisco",
-	{Latitude: 440570000, Longitude: -123086900}: "Eugene",
+	{Latitude: 397391999, Longitude: -1049903000}: "Denver", // Although Devner's still weird
+	{Latitude: 327157000, Longitude: -1171611000}: "San Diego",
+	{Latitude: 377749000, Longitude: -1224194000}: "San Francisco",
+	{Latitude: 440570000, Longitude: -1230869000}: "Eugene",
 }
 
 func RegisterServer(s *grpc.Server) {
@@ -42,6 +42,28 @@ func (s *server) GetFeature(ctx context.Context, in *pb.Point) (*pb.Feature, err
 	}
 	log.Printf("Info: Feature at %v is %s", in, feature.GetName())
 	return feature, nil
+}
+
+func (s *server) ListFeatures(area *pb.Rectangle, stream pb.RouteGuide_ListFeaturesServer) error {
+	log.Printf("Info: Looking for features in %v", area)
+	for location, feature := range KnownFeatures {
+		point := &pb.Point{
+			Latitude:  float64(location.Latitude) * 1e-7,
+			Longitude: float64(location.Longitude) * 1e-7,
+		}
+		log.Printf("Info: Checking %s at %v", feature, point)
+		if inArea(point, area) {
+			log.Printf("Info: Found feature %s at %v", feature, point)
+			feature := &pb.Feature{
+				Name:     feature,
+				Location: point,
+			}
+			if err := stream.Send(feature); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (s *server) RecordRoute(stream pb.RouteGuide_RecordRouteServer) error {
@@ -85,11 +107,11 @@ func (s *server) RecordRoute(stream pb.RouteGuide_RecordRouteServer) error {
 
 func lookupFeature(point *pb.Point) string {
 	lookupKey := struct {
-		Latitude  int32
-		Longitude int32
+		Latitude  int64
+		Longitude int64
 	}{
-		Latitude:  int32(point.Latitude * 1e7),
-		Longitude: int32(point.Longitude * 1e7),
+		Latitude:  int64(point.Latitude * 1e7),
+		Longitude: int64(point.Longitude * 1e7),
 	}
 	if feature, ok := KnownFeatures[lookupKey]; ok {
 		return feature
@@ -110,4 +132,11 @@ func calcDistance(start, end *pb.Point) int32 {
 
 	miles, _ := haversine.Distance(p1, p2)
 	return int32(miles)
+}
+
+func inArea(point *pb.Point, area *pb.Rectangle) bool {
+	withinLatitude := point.Latitude >= area.BottomRight.Latitude && point.Latitude <= area.TopLeft.Latitude
+	withinLongitude := point.Longitude >= area.TopLeft.Longitude && point.Longitude <= area.BottomRight.Longitude
+
+	return withinLatitude && withinLongitude
 }

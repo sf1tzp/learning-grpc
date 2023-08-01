@@ -23,6 +23,7 @@ import (
 	"context"
 	"flag"
 	"log"
+	"strings"
 	"time"
 
 	hw "github.com/sf1tzp/learning-grpc/go/client/helloworld"
@@ -91,6 +92,7 @@ func callRouteGuideAPIs(conn *grpc.ClientConn) error {
 
 	client := rg.NewRouteGuideClient(conn)
 
+	log.Printf("Trying GetFeature (Unary)")
 	feature, err := client.GetFeature(ctx, 1, 1)
 	if err != nil {
 		return err
@@ -103,19 +105,54 @@ func callRouteGuideAPIs(conn *grpc.ClientConn) error {
 	}
 	log.Printf("Feature: %s", feature)
 
+	log.Printf("Trying RecordRoute (Client Streaming)")
 	distance, err := client.GetRouteDistance(ctx, []struct {
 		Latitude  float64
 		Longitude float64
 	}{
 		{Latitude: 38.6270, Longitude: -90.19940},
-		{Latitude: 39.7392, Longitude: -10.49903},
-		{Latitude: 32.7157, Longitude: -11.71611},
-		{Latitude: 37.7749, Longitude: -12.24194},
-		{Latitude: 44.0570, Longitude: -12.30869},
+		{Latitude: 39.7392, Longitude: -104.9903},
+		{Latitude: 32.7157, Longitude: -117.1611},
+		{Latitude: 37.7749, Longitude: -122.4194},
+		{Latitude: 44.0570, Longitude: -123.0869},
 	})
 	if err != nil {
 		return err
 	}
 	log.Printf("Route Distance: %d", distance)
+
+	log.Printf("Trying ListFeatures (Server Streaming)")
+	area := struct {
+		TopLeft struct {
+			Latitude  float64
+			Longitude float64
+		}
+		BottomRight struct {
+			Latitude  float64
+			Longitude float64
+		}
+	}{
+		TopLeft: struct {
+			Latitude  float64
+			Longitude float64
+		}{
+			// 50.030520, -126.800328
+			Latitude:  50.030520,
+			Longitude: -126.800328,
+		},
+		BottomRight: struct {
+			Latitude  float64
+			Longitude float64
+		}{
+			// 20.104646, -75.219728
+			Latitude:  20.104646,
+			Longitude: -75.219728,
+		},
+	}
+	features, err := client.ListFeatures(ctx, area)
+	if err != nil {
+		return err
+	}
+	log.Printf("Features within %v: %s", area, strings.Join(features, ", "))
 	return nil
 }
