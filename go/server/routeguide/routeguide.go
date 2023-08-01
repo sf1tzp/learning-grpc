@@ -7,7 +7,7 @@ import (
 	"time"
 
 	pb "github.com/sf1tzp/learning-grpc/go/protobuf/routeguide"
-	"github.com/umahmood/haversine"
+	util "github.com/sf1tzp/learning-grpc/go/server/routeguide/util"
 	"google.golang.org/grpc"
 )
 
@@ -15,24 +15,12 @@ type server struct {
 	pb.UnimplementedRouteGuideServer
 }
 
-var KnownFeatures = map[struct {
-	Latitude  int64
-	Longitude int64
-}]string{
-	// Using ints for lat/long values to try to avoid floating point rounding errors.
-	{Latitude: 386270000, Longitude: -901994000}: "Saint Louis",
-	{Latitude: 397391999, Longitude: -1049903000}: "Denver", // Although Devner's still weird
-	{Latitude: 327157000, Longitude: -1171611000}: "San Diego",
-	{Latitude: 377749000, Longitude: -1224194000}: "San Francisco",
-	{Latitude: 440570000, Longitude: -1230869000}: "Eugene",
-}
-
 func RegisterServer(s *grpc.Server) {
 	pb.RegisterRouteGuideServer(s, &server{})
 }
 
 func (s *server) GetFeature(ctx context.Context, in *pb.Point) (*pb.Feature, error) {
-	name := lookupFeature(in)
+	name := util.LookupFeature(in)
 	if name == "" {
 		name = "Somewhere on Earth"
 	}
@@ -46,18 +34,10 @@ func (s *server) GetFeature(ctx context.Context, in *pb.Point) (*pb.Feature, err
 
 func (s *server) ListFeatures(area *pb.Rectangle, stream pb.RouteGuide_ListFeaturesServer) error {
 	log.Printf("Info: Looking for features in %v", area)
-	for location, feature := range KnownFeatures {
-		point := &pb.Point{
-			Latitude:  float64(location.Latitude) * 1e-7,
-			Longitude: float64(location.Longitude) * 1e-7,
-		}
-		log.Printf("Info: Checking %s at %v", feature, point)
-		if inArea(point, area) {
-			log.Printf("Info: Found feature %s at %v", feature, point)
-			feature := &pb.Feature{
-				Name:     feature,
-				Location: point,
-			}
+	for _, feature := range util.ListKnownFeatures() {
+		log.Printf("Info: Checking %s at %v", feature, feature.Location)
+		if util.InArea(feature.Location, area) {
+			log.Printf("Info: Found feature %s at %v", feature, feature.Location)
 			if err := stream.Send(feature); err != nil {
 				return err
 			}
@@ -91,52 +71,16 @@ func (s *server) RecordRoute(stream pb.RouteGuide_RecordRouteServer) error {
 		log.Printf("Info: Received point %v", point)
 
 		pointCounter++
-		feature := lookupFeature(point)
+		feature := util.LookupFeature(point)
 		if feature != "" {
 			log.Printf("Info: Point %v is in %s", point, feature)
 			featureCounter++
 		}
 
 		if lastPoint != nil {
-			distance += calcDistance(lastPoint, point)
+			distance += util.CalculateDistance(lastPoint, point)
 		}
 
 		lastPoint = point
 	}
-}
-
-func lookupFeature(point *pb.Point) string {
-	lookupKey := struct {
-		Latitude  int64
-		Longitude int64
-	}{
-		Latitude:  int64(point.Latitude * 1e7),
-		Longitude: int64(point.Longitude * 1e7),
-	}
-	if feature, ok := KnownFeatures[lookupKey]; ok {
-		return feature
-	}
-	return ""
-}
-
-func calcDistance(start, end *pb.Point) int32 {
-	p1 := haversine.Coord{
-		Lat: start.Latitude,
-		Lon: start.Longitude,
-	}
-
-	p2 := haversine.Coord{
-		Lat: end.Latitude,
-		Lon: end.Longitude,
-	}
-
-	miles, _ := haversine.Distance(p1, p2)
-	return int32(miles)
-}
-
-func inArea(point *pb.Point, area *pb.Rectangle) bool {
-	withinLatitude := point.Latitude >= area.BottomRight.Latitude && point.Latitude <= area.TopLeft.Latitude
-	withinLongitude := point.Longitude >= area.TopLeft.Longitude && point.Longitude <= area.BottomRight.Longitude
-
-	return withinLatitude && withinLongitude
 }

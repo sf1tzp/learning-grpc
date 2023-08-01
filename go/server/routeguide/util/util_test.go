@@ -1,4 +1,4 @@
-package routeguide
+package routeguide_util
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCalcDistance(t *testing.T) {
+func TestCalculateDistance(t *testing.T) {
 	cases := []struct {
 		name             string
 		p1               pb.Point
@@ -29,7 +29,7 @@ func TestCalcDistance(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		d := calcDistance(&c.p1, &c.p2)
+		d := CalculateDistance(&c.p1, &c.p2)
 		assert.Equal(t, c.expectedDistance, d, c.name)
 	}
 }
@@ -51,7 +51,7 @@ func TestInArea(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "point not in area",
+			name:  "point not in area",
 			point: pb.Point{Latitude: 38.6270, Longitude: -90.19940},
 			area: pb.Rectangle{
 				TopLeft:     &pb.Point{Latitude: 40.818967, Longitude: -100.595613},
@@ -62,6 +62,6 @@ func TestInArea(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		assert.Equal(t, c.expected, inArea(&c.point, &c.area), c.name)
+		assert.Equal(t, c.expected, InArea(&c.point, &c.area), c.name)
 	}
 }
