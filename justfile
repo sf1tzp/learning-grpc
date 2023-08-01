@@ -16,3 +16,13 @@ go-client:
     #!/usr/bin/env bash
     cd go
     go run greeter_client/main.go
+
+generate-rust:
+    #!/usr/bin/env bash
+    cd rust
+    cargo build
+
+rust-client:
+    #!/usr/bin/env bash
+    cd rust
+    cargo run src/greeter_client.rs
