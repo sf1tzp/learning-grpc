@@ -25,15 +25,15 @@ import (
 	"log"
 	"time"
 
-	hw "github.com/sf1tzp/learning-grpc/go/protobuf/helloworld"
-	rg "github.com/sf1tzp/learning-grpc/go/protobuf/routeguide"
+	hw "github.com/sf1tzp/learning-grpc/go/client/helloworld"
+	rg "github.com/sf1tzp/learning-grpc/go/client/routeguide"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
-	defaultName = "world"
+	defaultName = "Go the Gopher 😎"
 )
 
 var (
@@ -49,38 +49,53 @@ func main() {
 		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close()
-	c := hw.NewGreeterClient(conn)
 
 	// Contact the server and print out its response.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	r, err := c.SayHello(ctx, &hw.HelloRequest{Name: *name})
+	err = callHelloWorldAPIs(conn)
 	if err != nil {
-		log.Fatalf("could not greet: %v", err)
+		log.Fatalf("callHelloWorldAPIs failed :( %v", err)
 	}
-	log.Printf("Greeting: %s", r.GetMessage())
-
-	r, err = c.SayHelloAgain(ctx, &hw.HelloRequest{Name: *name})
-	if err != nil {
-		log.Fatalf("could not greet: %v", err)
-	}
-	log.Printf("Greeting: %s", r.GetMessage())
 
 	// Route guide
-
-	conn2, err := grpc.Dial("localhost:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	err = callRouteGuideAPIs(conn)
 	if err != nil {
-		log.Fatalf("did not connect 3: %v", err)
+		log.Fatalf("callRouteGuideAPIs failed :( %v", err)
 	}
 
-	defer conn2.Close()
-	c2 := rg.NewRouteGuideClient(conn2)
-	ctx2, cancel := context.WithTimeout(context.Background(), time.Second)
+}
+
+func callHelloWorldAPIs(conn *grpc.ClientConn) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	r2, err := c2.GetFeature(ctx2, &rg.Point{Latitude: 409146138, Longitude: -746188906})
+	client := hw.NewHelloWorldClient(conn)
+
+	response, err := client.Hello(ctx, *name)
 	if err != nil {
-		log.Fatalf("could not get features: %v", err)
+		return err
 	}
-	log.Printf("Features at: %s", r2.String())
+	log.Printf("Greeting: %s", response)
+
+	response, err = client.HelloAgain(ctx, *name)
+	if err != nil {
+		return err
+	}
+	log.Printf("Greeting: %s", response)
+
+	return nil
+}
+
+func callRouteGuideAPIs(conn *grpc.ClientConn) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	client := rg.NewRouteGuideClient(conn)
+
+	response, err := client.GetFeature(ctx, 1, 1)
+	if err != nil {
+		return err
+	}
+	log.Printf("Feature: %s", response)
+
+	return nil
 }

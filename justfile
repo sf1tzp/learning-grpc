@@ -12,12 +12,12 @@ generate-go:
 go-server:
     #!/usr/bin/env bash
     cd go
-    go run greeter_server/main.go
+    go run server/main.go
 
 go-client:
     #!/usr/bin/env bash
     cd go
-    go run greeter_client/main.go
+    go run client/main.go
 
 generate-rust:
     #!/usr/bin/env bash
