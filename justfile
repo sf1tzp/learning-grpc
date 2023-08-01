@@ -1,3 +1,5 @@
+generate: generate-go generate-rust
+
 generate-go:
     #!/usr/bin/env bash
     protoc \
@@ -25,4 +27,4 @@ generate-rust:
 rust-client:
     #!/usr/bin/env bash
     cd rust
-    cargo run src/greeter_client.rs
+    cargo run --bin client
