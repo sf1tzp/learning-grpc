@@ -1,4 +1,4 @@
-module github.com/sf1tzp/learning-grpc
+module github.com/sf1tzp/learning-grpc/go
 
 go 1.19
 

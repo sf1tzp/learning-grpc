@@ -26,7 +26,7 @@ import (
 	"log"
 	"net"
 
-	pb "github.com/sf1tzp/learning-grpc/helloworld"
+	pb "github.com/sf1tzp/learning-grpc/go/helloworld"
 
 	"google.golang.org/grpc"
 )
