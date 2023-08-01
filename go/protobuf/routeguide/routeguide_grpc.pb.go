@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	RouteGuide_GetFeature_FullMethodName = "/routeguide.RouteGuide/GetFeature"
+	RouteGuide_GetFeature_FullMethodName  = "/routeguide.RouteGuide/GetFeature"
+	RouteGuide_RecordRoute_FullMethodName = "/routeguide.RouteGuide/RecordRoute"
 )
 
 // RouteGuideClient is the client API for RouteGuide service.
@@ -27,6 +28,8 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type RouteGuideClient interface {
 	GetFeature(ctx context.Context, in *Point, opts ...grpc.CallOption) (*Feature, error)
+	// rpc ListFeatures(Rectangle) returns (stream Feature) {}
+	RecordRoute(ctx context.Context, opts ...grpc.CallOption) (RouteGuide_RecordRouteClient, error)
 }
 
 type routeGuideClient struct {
@@ -46,11 +49,47 @@ func (c *routeGuideClient) GetFeature(ctx context.Context, in *Point, opts ...gr
 	return out, nil
 }
 
+func (c *routeGuideClient) RecordRoute(ctx context.Context, opts ...grpc.CallOption) (RouteGuide_RecordRouteClient, error) {
+	stream, err := c.cc.NewStream(ctx, &RouteGuide_ServiceDesc.Streams[0], RouteGuide_RecordRoute_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &routeGuideRecordRouteClient{stream}
+	return x, nil
+}
+
+type RouteGuide_RecordRouteClient interface {
+	Send(*Point) error
+	CloseAndRecv() (*RouteSummary, error)
+	grpc.ClientStream
+}
+
+type routeGuideRecordRouteClient struct {
+	grpc.ClientStream
+}
+
+func (x *routeGuideRecordRouteClient) Send(m *Point) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *routeGuideRecordRouteClient) CloseAndRecv() (*RouteSummary, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(RouteSummary)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // RouteGuideServer is the server API for RouteGuide service.
 // All implementations must embed UnimplementedRouteGuideServer
 // for forward compatibility
 type RouteGuideServer interface {
 	GetFeature(context.Context, *Point) (*Feature, error)
+	// rpc ListFeatures(Rectangle) returns (stream Feature) {}
+	RecordRoute(RouteGuide_RecordRouteServer) error
 	mustEmbedUnimplementedRouteGuideServer()
 }
 
@@ -60,6 +99,9 @@ type UnimplementedRouteGuideServer struct {
 
 func (UnimplementedRouteGuideServer) GetFeature(context.Context, *Point) (*Feature, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFeature not implemented")
+}
+func (UnimplementedRouteGuideServer) RecordRoute(RouteGuide_RecordRouteServer) error {
+	return status.Errorf(codes.Unimplemented, "method RecordRoute not implemented")
 }
 func (UnimplementedRouteGuideServer) mustEmbedUnimplementedRouteGuideServer() {}
 
@@ -92,6 +134,32 @@ func _RouteGuide_GetFeature_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RouteGuide_RecordRoute_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(RouteGuideServer).RecordRoute(&routeGuideRecordRouteServer{stream})
+}
+
+type RouteGuide_RecordRouteServer interface {
+	SendAndClose(*RouteSummary) error
+	Recv() (*Point, error)
+	grpc.ServerStream
+}
+
+type routeGuideRecordRouteServer struct {
+	grpc.ServerStream
+}
+
+func (x *routeGuideRecordRouteServer) SendAndClose(m *RouteSummary) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *routeGuideRecordRouteServer) Recv() (*Point, error) {
+	m := new(Point)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // RouteGuide_ServiceDesc is the grpc.ServiceDesc for RouteGuide service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -104,6 +172,12 @@ var RouteGuide_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _RouteGuide_GetFeature_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "RecordRoute",
+			Handler:       _RouteGuide_RecordRoute_Handler,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "protobuf/routeguide/routeguide.proto",
 }

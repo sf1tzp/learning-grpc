@@ -91,11 +91,31 @@ func callRouteGuideAPIs(conn *grpc.ClientConn) error {
 
 	client := rg.NewRouteGuideClient(conn)
 
-	response, err := client.GetFeature(ctx, 1, 1)
+	feature, err := client.GetFeature(ctx, 1, 1)
 	if err != nil {
 		return err
 	}
-	log.Printf("Feature: %s", response)
+	log.Printf("Feature: %s", feature)
 
+	feature, err = client.GetFeature(ctx, 38.6270, -90.19940)
+	if err != nil {
+		return err
+	}
+	log.Printf("Feature: %s", feature)
+
+	distance, err := client.GetRouteDistance(ctx, []struct {
+		Latitude  float64
+		Longitude float64
+	}{
+		{Latitude: 38.6270, Longitude: -90.19940},
+		{Latitude: 39.7392, Longitude: -10.49903},
+		{Latitude: 32.7157, Longitude: -11.71611},
+		{Latitude: 37.7749, Longitude: -12.24194},
+		{Latitude: 44.0570, Longitude: -12.30869},
+	})
+	if err != nil {
+		return err
+	}
+	log.Printf("Route Distance: %d", distance)
 	return nil
 }
