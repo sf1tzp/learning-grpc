@@ -151,16 +151,47 @@ func callRouteGuideAPIs(conn *grpc.ClientConn) error {
 	log.Println("Trying RouteChat (Bidirectional Streaming)")
 	notes := []rg.Note{
 		{
+			// Read the notes for Saint Louis
+			Name: "Saint Louis",
+		},
+		{
+			// Add a note for Saint Louis
+			Name:    "Saint Louis",
+			Message: "Go Cardinals!",
+		},
+		{
+			// Read the notes for Saint Louis
+			Name: "Saint Louis",
+		},
+		{
+			// Save the Vegas Location
 			Location: rg.Point{
-				Latitude:  0.0,
-				Longitude: 0.0,
+				Latitude:  36.108752,
+				Longitude: -115.172729,
 			},
-			Message: "First Note",
+			Name:    "Las Vegas",
+			Message: "Party On!",
+		},
+		{
+			// Read the notes for Las Vegas
+			Name: "Las Vegas",
+		},
+		// FIXME: When an error occurs, the client stops sending messages
+		{
+			// Send a note with no name
+			// This should error without a name
+			Message: "This should error",
+		},
+		{
+			// Request notes for an un-noted location
+			// This should error as there are no notes
+			Name: "Tokyo",
 		},
 	}
 
 	err = client.RouteChat(ctx, notes)
 	if err != nil {
+		log.Printf("RouteChat failed :( %v", err)
 		return err
 	}
 

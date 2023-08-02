@@ -2,7 +2,7 @@ package routeguide
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"io"
 	"log"
 	"time"
@@ -10,6 +10,8 @@ import (
 	pb "github.com/sf1tzp/learning-grpc/go/protobuf/routeguide"
 	util "github.com/sf1tzp/learning-grpc/go/server/routeguide/util"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type server struct {
@@ -98,34 +100,43 @@ func (s *server) RouteChat(stream pb.RouteGuide_RouteChatServer) error {
 			return err
 		}
 
+		log.Printf("Info: Received request %v", request)
+
 		hasName := request.GetName() != ""
-		if hasName {
+		hasMessage := request.GetMessage() != ""
+		hasLocation := request.GetLocation() != nil
+
+		if hasName && hasLocation {
 			util.SaveFeature(request.GetLocation(), request.GetName())
 		}
 
-		hasMessage := request.GetMessage() != ""
 		switch {
 		case hasName && hasMessage:
 			util.SaveNote(request.GetName(), request.GetMessage())
+		// FIXME: Why do the errors below cause the client to hang?
 		case hasName && !hasMessage:
 			notes, err := util.GetNotes(request.GetName())
 			if err != nil {
-				return err
+				err := fmt.Errorf("error getting notes: %w", err)
+				return status.Error(codes.NotFound, err.Error())
 			}
 			for _, note := range notes {
 				err := stream.Send(&pb.RouteNote{
 					Name:     request.Name,
-					Message:  &note,
+					Message:  note,
 					Location: request.GetLocation(),
 				})
 				if err != nil {
+					log.Printf("Error: %v", err)
 					return err
 				}
 			}
 		case !hasName && hasMessage:
-			return errors.New("could not save message - no name supplied")
+			log.Printf("Error: Received message without name: %v", request)
+			return status.Error(codes.InvalidArgument, "no name supplied")
 		default:
-			return errors.New("no name or message supplied")
+			log.Printf("Error: Received request without name or message: %v", request)
+			return status.Error(codes.InvalidArgument, "no name or message supplied")
 		}
 	}
 }

@@ -84,6 +84,8 @@ func (c *RouteGuideClient) RouteChat(ctx context.Context, notes []Note) error {
 				return nil
 			}
 			if err != nil {
+				// FIXME: Why does this halt everything?
+				log.Printf("Recv Error: %v", err)
 				return err
 			}
 			log.Printf("Info: Received Note for %s: %s", in.GetName(), in.GetMessage())
@@ -94,7 +96,7 @@ func (c *RouteGuideClient) RouteChat(ctx context.Context, notes []Note) error {
 		note := n.unWrap()
 		err := stream.Send(note)
 		if err != nil {
-			log.Printf("Error: %v", err)
+			log.Printf("Send Error: %v", err)
 		}
 	}
 
