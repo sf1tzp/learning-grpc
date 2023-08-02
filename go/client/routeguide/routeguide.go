@@ -19,32 +19,22 @@ func NewRouteGuideClient(connection *grpc.ClientConn) RouteGuideClient {
 	}
 }
 
-func (c *RouteGuideClient) GetFeature(ctx context.Context, lat float64, long float64) (string, error) {
-	point := &pb.Point{
-		Latitude:  lat,
-		Longitude: long,
-	}
-	feature, err := c.client.GetFeature(ctx, point)
+func (c *RouteGuideClient) GetFeature(ctx context.Context, point *Point) (string, error) {
+	feature, err := c.client.GetFeature(ctx, point.unWrap())
 	if err != nil {
 		return "", err
 	}
 	return feature.GetName(), nil
 }
 
-func (c *RouteGuideClient) GetRouteDistance(ctx context.Context, points []struct {
-	Latitude  float64
-	Longitude float64
-}) (int32, error) {
+func (c *RouteGuideClient) GetRouteDistance(ctx context.Context, points []Point) (int32, error) {
 	stream, err := c.client.RecordRoute(ctx)
 	if err != nil {
 		return 0, err
 	}
 
 	for _, p := range points {
-		point := &pb.Point{
-			Latitude:  p.Latitude,
-			Longitude: p.Longitude,
-		}
+		point := p.unWrap()
 		if err := stream.Send(point); err != nil {
 			return 0, err
 		}
@@ -57,29 +47,9 @@ func (c *RouteGuideClient) GetRouteDistance(ctx context.Context, points []struct
 	return response.Distance, nil
 }
 
-func (c *RouteGuideClient) ListFeatures(ctx context.Context, area struct {
-	TopLeft struct {
-		Latitude  float64
-		Longitude float64
-	}
-	BottomRight struct {
-		Latitude  float64
-		Longitude float64
-	}
-}) ([]string, error) {
+func (c *RouteGuideClient) ListFeatures(ctx context.Context, area Area) ([]string, error) {
 	var features []string
-	rectangle := &pb.Rectangle{
-		TopLeft: &pb.Point{
-			Latitude:  area.TopLeft.Latitude,
-			Longitude: area.TopLeft.Longitude,
-		},
-		BottomRight: &pb.Point{
-			Latitude:  area.BottomRight.Latitude,
-			Longitude: area.BottomRight.Longitude,
-		},
-	}
-
-	stream, err := c.client.ListFeatures(ctx, rectangle)
+	stream, err := c.client.ListFeatures(ctx, area.unWrap())
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +67,7 @@ func (c *RouteGuideClient) ListFeatures(ctx context.Context, area struct {
 	return features, nil
 }
 
-func (c *RouteGuideClient) RouteChat(ctx context.Context, notes []*pb.RouteNote) error {
+func (c *RouteGuideClient) RouteChat(ctx context.Context, notes []Note) error {
 	log.Println("Starting Stream")
 	stream, err := c.client.RouteChat(ctx)
 	if err != nil {
@@ -120,7 +90,8 @@ func (c *RouteGuideClient) RouteChat(ctx context.Context, notes []*pb.RouteNote)
 		}
 	}()
 
-	for _, note := range notes {
+	for _, n := range notes {
+		note := n.unWrap()
 		err := stream.Send(note)
 		if err != nil {
 			log.Printf("Error: %v", err)
