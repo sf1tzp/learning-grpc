@@ -4,7 +4,7 @@ use tonic::{transport::Server, Request, Response, Status, Streaming};
 
 use learning_grpc::protobuf::routeguide::{
     route_guide_server::{RouteGuide, RouteGuideServer},
-    Feature, Point, Rectangle, RouteSummary,
+    Feature, Point, Rectangle, RouteSummary, RouteNote,
 };
 
 #[derive(Debug, Default)]
@@ -40,6 +40,14 @@ impl RouteGuide for RouteServer {
         &self,
         request: Request<Rectangle>,
     ) -> Result<Response<Self::ListFeaturesStream>, Status> {
+        unimplemented!()
+    }
+    
+    type RouteChatStream = ReceiverStream<Result<RouteNote, Status>>;
+    async fn route_chat(
+        &self,
+        request: Request<Streaming<RouteNote>>,
+    ) -> Result<Response<Self::RouteChatStream>, Status> {
         unimplemented!()
     }
 }
