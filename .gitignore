@@ -1,3 +1,6 @@
 .vscode/
 
 **/target/
+
+go/protobuf/
+rust/src/protobuf/
