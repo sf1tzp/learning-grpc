@@ -22,6 +22,7 @@ const (
 	RouteGuide_GetFeature_FullMethodName   = "/routeguide.RouteGuide/GetFeature"
 	RouteGuide_ListFeatures_FullMethodName = "/routeguide.RouteGuide/ListFeatures"
 	RouteGuide_RecordRoute_FullMethodName  = "/routeguide.RouteGuide/RecordRoute"
+	RouteGuide_RouteChat_FullMethodName    = "/routeguide.RouteGuide/RouteChat"
 )
 
 // RouteGuideClient is the client API for RouteGuide service.
@@ -31,6 +32,7 @@ type RouteGuideClient interface {
 	GetFeature(ctx context.Context, in *Point, opts ...grpc.CallOption) (*Feature, error)
 	ListFeatures(ctx context.Context, in *Rectangle, opts ...grpc.CallOption) (RouteGuide_ListFeaturesClient, error)
 	RecordRoute(ctx context.Context, opts ...grpc.CallOption) (RouteGuide_RecordRouteClient, error)
+	RouteChat(ctx context.Context, opts ...grpc.CallOption) (RouteGuide_RouteChatClient, error)
 }
 
 type routeGuideClient struct {
@@ -116,6 +118,37 @@ func (x *routeGuideRecordRouteClient) CloseAndRecv() (*RouteSummary, error) {
 	return m, nil
 }
 
+func (c *routeGuideClient) RouteChat(ctx context.Context, opts ...grpc.CallOption) (RouteGuide_RouteChatClient, error) {
+	stream, err := c.cc.NewStream(ctx, &RouteGuide_ServiceDesc.Streams[2], RouteGuide_RouteChat_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &routeGuideRouteChatClient{stream}
+	return x, nil
+}
+
+type RouteGuide_RouteChatClient interface {
+	Send(*RouteNote) error
+	Recv() (*RouteNote, error)
+	grpc.ClientStream
+}
+
+type routeGuideRouteChatClient struct {
+	grpc.ClientStream
+}
+
+func (x *routeGuideRouteChatClient) Send(m *RouteNote) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *routeGuideRouteChatClient) Recv() (*RouteNote, error) {
+	m := new(RouteNote)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // RouteGuideServer is the server API for RouteGuide service.
 // All implementations must embed UnimplementedRouteGuideServer
 // for forward compatibility
@@ -123,6 +156,7 @@ type RouteGuideServer interface {
 	GetFeature(context.Context, *Point) (*Feature, error)
 	ListFeatures(*Rectangle, RouteGuide_ListFeaturesServer) error
 	RecordRoute(RouteGuide_RecordRouteServer) error
+	RouteChat(RouteGuide_RouteChatServer) error
 	mustEmbedUnimplementedRouteGuideServer()
 }
 
@@ -138,6 +172,9 @@ func (UnimplementedRouteGuideServer) ListFeatures(*Rectangle, RouteGuide_ListFea
 }
 func (UnimplementedRouteGuideServer) RecordRoute(RouteGuide_RecordRouteServer) error {
 	return status.Errorf(codes.Unimplemented, "method RecordRoute not implemented")
+}
+func (UnimplementedRouteGuideServer) RouteChat(RouteGuide_RouteChatServer) error {
+	return status.Errorf(codes.Unimplemented, "method RouteChat not implemented")
 }
 func (UnimplementedRouteGuideServer) mustEmbedUnimplementedRouteGuideServer() {}
 
@@ -217,6 +254,32 @@ func (x *routeGuideRecordRouteServer) Recv() (*Point, error) {
 	return m, nil
 }
 
+func _RouteGuide_RouteChat_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(RouteGuideServer).RouteChat(&routeGuideRouteChatServer{stream})
+}
+
+type RouteGuide_RouteChatServer interface {
+	Send(*RouteNote) error
+	Recv() (*RouteNote, error)
+	grpc.ServerStream
+}
+
+type routeGuideRouteChatServer struct {
+	grpc.ServerStream
+}
+
+func (x *routeGuideRouteChatServer) Send(m *RouteNote) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *routeGuideRouteChatServer) Recv() (*RouteNote, error) {
+	m := new(RouteNote)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // RouteGuide_ServiceDesc is the grpc.ServiceDesc for RouteGuide service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -238,6 +301,12 @@ var RouteGuide_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "RecordRoute",
 			Handler:       _RouteGuide_RecordRoute_Handler,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "RouteChat",
+			Handler:       _RouteGuide_RouteChat_Handler,
+			ServerStreams: true,
 			ClientStreams: true,
 		},
 	},

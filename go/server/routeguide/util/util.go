@@ -1,6 +1,8 @@
 package routeguide_util
 
 import (
+	"fmt"
+
 	pb "github.com/sf1tzp/learning-grpc/go/protobuf/routeguide"
 	"github.com/umahmood/haversine"
 )
@@ -18,12 +20,12 @@ var knownFeatures = map[struct {
 	{Latitude: 440570000, Longitude: -1230869000}: "Eugene",
 }
 
-var featureNotes = map[string]string{
-	"Saint Louis":   "Home of the Gateway Arch",
-	"Denver":        "Mile High City",
-	"San Diego":     "Home of the San Diego Zoo",
-	"San Francisco": "Home of the Golden Gate Bridge",
-	"Eugene":        "Home of the University of Oregon",
+var featureNotes = map[string][]string{
+	"Saint Louis":   {"Home of the Gateway Arch"},
+	"Denver":        {"Mile High City"},
+	"San Diego":     {"Home of the San Diego Zoo"},
+	"San Francisco": {"Home of the Golden Gate Bridge"},
+	"Eugene":        {"Home of the University of Oregon"},
 }
 
 // Utility functions for the RouteGuide server
@@ -53,6 +55,29 @@ func LookupFeature(point *pb.Point) string {
 		return feature
 	}
 	return ""
+}
+
+func SaveFeature(point *pb.Point, name string) {
+	lookupKey := struct {
+		Latitude  int64
+		Longitude int64
+	}{
+		Latitude:  int64(point.Latitude * 1e7),
+		Longitude: int64(point.Longitude * 1e7),
+	}
+	knownFeatures[lookupKey] = name
+}
+
+func SaveNote(name string, note string) {
+	featureNotes[name] = append(featureNotes[name], note)
+}
+
+func GetNotes(name string) ([]string, error) {
+	notes, ok := featureNotes[name]
+	if !ok {
+		return nil, fmt.Errorf("no notes found for %s", name)
+	}
+	return notes, nil
 }
 
 func CalculateDistance(start, end *pb.Point) int32 {

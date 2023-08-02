@@ -2,6 +2,7 @@ package routeguide
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log"
 	"time"
@@ -82,5 +83,49 @@ func (s *server) RecordRoute(stream pb.RouteGuide_RecordRouteServer) error {
 		}
 
 		lastPoint = point
+	}
+}
+
+func (s *server) RouteChat(stream pb.RouteGuide_RouteChatServer) error {
+	log.Printf("Info: Starting stream")
+	for {
+		request, err := stream.Recv()
+		if err == io.EOF {
+			log.Printf("Info: Stream ended")
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		hasName := request.GetName() != ""
+		if hasName {
+			util.SaveFeature(request.GetLocation(), request.GetName())
+		}
+
+		hasMessage := request.GetMessage() != ""
+		switch {
+		case hasName && hasMessage:
+			util.SaveNote(request.GetName(), request.GetMessage())
+		case hasName && !hasMessage:
+			notes, err := util.GetNotes(request.GetName())
+			if err != nil {
+				return err
+			}
+			for _, note := range notes {
+				err := stream.Send(&pb.RouteNote{
+					Name:     request.Name,
+					Message:  &note,
+					Location: request.GetLocation(),
+				})
+				if err != nil {
+					return err
+				}
+			}
+		case !hasName && hasMessage:
+			return errors.New("could not save message - no name supplied")
+		default:
+			return errors.New("no name or message supplied")
+		}
 	}
 }

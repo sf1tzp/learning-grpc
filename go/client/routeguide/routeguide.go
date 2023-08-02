@@ -3,6 +3,7 @@ package routeguide
 import (
 	"context"
 	"io"
+	"log"
 
 	pb "github.com/sf1tzp/learning-grpc/go/protobuf/routeguide"
 	"google.golang.org/grpc"
@@ -94,4 +95,40 @@ func (c *RouteGuideClient) ListFeatures(ctx context.Context, area struct {
 		features = append(features, feature.GetName())
 	}
 	return features, nil
+}
+
+func (c *RouteGuideClient) RouteChat(ctx context.Context, notes []*pb.RouteNote) error {
+	log.Println("Starting Stream")
+	stream, err := c.client.RouteChat(ctx)
+	if err != nil {
+		return err
+	}
+
+	wait := make(chan struct{})
+	go func() error {
+		for {
+			in, err := stream.Recv()
+			if err == io.EOF {
+				close(wait)
+				log.Println("Stream ended")
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			log.Printf("Info: Received Note for %s: %s", in.GetName(), in.GetMessage())
+		}
+	}()
+
+	for _, note := range notes {
+		err := stream.Send(note)
+		if err != nil {
+			log.Printf("Error: %v", err)
+		}
+	}
+
+	stream.CloseSend()
+	<-wait
+
+	return nil
 }
