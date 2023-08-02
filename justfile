@@ -5,10 +5,11 @@ generate: _generate-go _generate-rust
 _generate-go:
     #!/usr/bin/env bash
     protoc \
-    --go_out=go \
+    --go_out=go/protobuf \
     --go_opt=paths=source_relative \
-    --go-grpc_out=go \
+    --go-grpc_out=go/protobuf \
     --go-grpc_opt=paths=source_relative \
+    --proto_path=protobuf \
     protobuf/**/*.proto
     if [ $? -eq 0 ]; then echo "Go gRPC bindings generated successfully"; fi
 

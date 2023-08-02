@@ -2,9 +2,9 @@ use anyhow::{anyhow, Result};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{transport::Server, Request, Response, Status, Streaming};
 
-use learning_grpc::protobuf::routeguide::{
+use learning_grpc::route_guide::{
     route_guide_server::{RouteGuide, RouteGuideServer},
-    Feature, Point, Rectangle, RouteSummary, RouteNote,
+    Feature, Point, Rectangle, RouteNote, RouteSummary, RouteNoteResponse,
 };
 
 #[derive(Debug, Default)]
@@ -13,7 +13,7 @@ pub struct RouteServer {}
 #[tonic::async_trait]
 impl RouteGuide for RouteServer {
     async fn get_feature(&self, request: Request<Point>) -> Result<Response<Feature>, Status> {
-        let (metadata, extensions, point) = request.into_parts();
+        let (metadata, _extensions, point) = request.into_parts();
         println!("Received request {:?}", metadata);
         println!("{:?}", point);
 
@@ -30,7 +30,7 @@ impl RouteGuide for RouteServer {
 
     async fn record_route(
         &self,
-        request: Request<Streaming<Point>>,
+        _request: Request<Streaming<Point>>,
     ) -> Result<Response<RouteSummary>, Status> {
         unimplemented!()
     }
@@ -38,15 +38,15 @@ impl RouteGuide for RouteServer {
     type ListFeaturesStream = ReceiverStream<Result<Feature, Status>>;
     async fn list_features(
         &self,
-        request: Request<Rectangle>,
+        _request: Request<Rectangle>,
     ) -> Result<Response<Self::ListFeaturesStream>, Status> {
         unimplemented!()
     }
-    
-    type RouteChatStream = ReceiverStream<Result<RouteNote, Status>>;
+
+    type RouteChatStream = ReceiverStream<Result<RouteNoteResponse, Status>>;
     async fn route_chat(
         &self,
-        request: Request<Streaming<RouteNote>>,
+        _request: Request<Streaming<RouteNote>>,
     ) -> Result<Response<Self::RouteChatStream>, Status> {
         unimplemented!()
     }

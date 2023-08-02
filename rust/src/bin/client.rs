@@ -1,10 +1,10 @@
 use anyhow::{anyhow, Result};
 
-use learning_grpc::protobuf::helloworld::greeter_client::GreeterClient;
-use learning_grpc::protobuf::helloworld::HelloRequest;
+use learning_grpc::hello_world::greeter_client::GreeterClient;
+use learning_grpc::hello_world::HelloRequest;
 
-use learning_grpc::protobuf::routeguide::route_guide_client::RouteGuideClient;
-use learning_grpc::protobuf::routeguide::Point;
+use learning_grpc::route_guide::route_guide_client::RouteGuideClient;
+use learning_grpc::route_guide::Point;
 
 #[tokio::main]
 async fn main() -> Result<()> {

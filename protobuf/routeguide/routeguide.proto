@@ -2,7 +2,7 @@ syntax = "proto3";
 
 option go_package = "github.com/sf1tzp/learning-grpc/protobuf/routeguide";
 
-import "protobuf/googleapis/google/rpc/status.proto";
+import "googleapis/google/rpc/status.proto";
 
 package routeguide;
 

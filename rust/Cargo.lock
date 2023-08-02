@@ -390,6 +390,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "prost",
+ "prost-types",
  "tokio",
  "tokio-stream",
  "tonic",
