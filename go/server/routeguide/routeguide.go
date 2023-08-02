@@ -11,7 +11,6 @@ import (
 	util "github.com/sf1tzp/learning-grpc/go/server/routeguide/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type server struct {
@@ -25,13 +24,13 @@ func RegisterServer(s *grpc.Server) {
 func (s *server) GetFeature(ctx context.Context, in *pb.Point) (*pb.Feature, error) {
 	name := util.LookupFeature(in)
 	if name == "" {
-		name = "Somewhere on Earth"
+		name = "somewhere on Earth"
 	}
 	feature := &pb.Feature{
 		Name:     name,
 		Location: in,
 	}
-	log.Printf("Info: Feature at %v is %s", in, feature.GetName())
+	log.Printf("Info: Feature at %v is %s", feature.GetLocation(), feature.GetName())
 	return feature, nil
 }
 
@@ -106,37 +105,61 @@ func (s *server) RouteChat(stream pb.RouteGuide_RouteChatServer) error {
 		hasMessage := request.GetMessage() != ""
 		hasLocation := request.GetLocation() != nil
 
+		// Update Features
 		if hasName && hasLocation {
 			util.SaveFeature(request.GetLocation(), request.GetName())
 		}
 
+		// Add or retrieve notes
 		switch {
 		case hasName && hasMessage:
 			util.SaveNote(request.GetName(), request.GetMessage())
-		// FIXME: Why do the errors below cause the client to hang?
+
 		case hasName && !hasMessage:
 			notes, err := util.GetNotes(request.GetName())
 			if err != nil {
-				err := fmt.Errorf("error getting notes: %w", err)
-				return status.Error(codes.NotFound, err.Error())
-			}
-			for _, note := range notes {
-				err := stream.Send(&pb.RouteNote{
-					Name:     request.Name,
-					Message:  note,
-					Location: request.GetLocation(),
-				})
+				// Build a gRPC error and send that
+				err := fmt.Errorf("failed to get notes: %w", err)
+				log.Printf("Error: %v", err)
+				response, err := buildRouteNoteErrorResponse(request, err, codes.NotFound)
 				if err != nil {
-					log.Printf("Error: %v", err)
+					log.Printf("Error: failed creating error response: %v", err) // !?!
+				}
+				err = stream.Send(response)
+				if err != nil {
+					log.Printf("Error: Stream error: %v", err)
 					return err
 				}
 			}
-		case !hasName && hasMessage:
-			log.Printf("Error: Received message without name: %v", request)
-			return status.Error(codes.InvalidArgument, "no name supplied")
+			// If there was no error, send the notes
+			for _, note := range notes {
+				err := stream.Send(&pb.RouteNoteResponse{
+					Message: &pb.RouteNoteResponse_RouteNote{
+						RouteNote: &pb.RouteNote{
+							Name:     request.Name,
+							Message:  note,
+							Location: request.GetLocation(),
+						},
+					},
+				})
+				if err != nil {
+					log.Printf("Error: Stream error: %v", err)
+					return err
+				}
+			}
+
 		default:
-			log.Printf("Error: Received request without name or message: %v", request)
-			return status.Error(codes.InvalidArgument, "no name or message supplied")
+			err := fmt.Errorf("invalid request: %v", request)
+			log.Printf("Error: %v", err)
+			response, err := buildRouteNoteErrorResponse(request, err, codes.InvalidArgument)
+			if err != nil {
+				log.Printf("Error: failed creating error response: %v", err) // !?!
+			}
+			err = stream.Send(response)
+			if err != nil {
+				log.Printf("Error: Stream error: %v", err)
+				return err
+			}
 		}
 	}
 }

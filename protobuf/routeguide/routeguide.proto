@@ -10,7 +10,7 @@ service RouteGuide {
     rpc GetFeature(Point) returns (Feature) {}
     rpc ListFeatures(Rectangle) returns (stream Feature) {}
     rpc RecordRoute(stream Point) returns (RouteSummary) {}
-    rpc RouteChat(stream RouteNote) returns (stream RouteNote) {}
+    rpc RouteChat(stream RouteNote) returns (stream RouteNoteResponse) {}
 }
 
 message Point {
@@ -32,6 +32,13 @@ message RouteNote {
     Point Location = 1;
     string Message = 2;
     string Name = 3;
+}
+
+message RouteNoteResponse {
+    oneof message {
+        RouteNote RouteNote = 1;
+        google.rpc.Status Error = 2;
+    }
 }
 
 message RouteSummary {

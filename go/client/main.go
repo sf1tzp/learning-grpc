@@ -94,8 +94,8 @@ func callRouteGuideAPIs(conn *grpc.ClientConn) error {
 
 	log.Printf("Trying GetFeature (Unary)")
 	point := rg.Point{
-		Latitude:  0.0,
-		Longitude: 0.0,
+		Latitude:  1.0,
+		Longitude: 1.0,
 	}
 
 	feature, err := client.GetFeature(ctx, &point)
@@ -176,7 +176,6 @@ func callRouteGuideAPIs(conn *grpc.ClientConn) error {
 			// Read the notes for Las Vegas
 			Name: "Las Vegas",
 		},
-		// FIXME: When an error occurs, the client stops sending messages
 		{
 			// Send a note with no name
 			// This should error without a name

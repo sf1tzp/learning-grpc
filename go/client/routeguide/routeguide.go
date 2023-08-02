@@ -7,6 +7,7 @@ import (
 
 	pb "github.com/sf1tzp/learning-grpc/go/protobuf/routeguide"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 )
 
 type RouteGuideClient struct {
@@ -20,7 +21,7 @@ func NewRouteGuideClient(connection *grpc.ClientConn) RouteGuideClient {
 }
 
 func (c *RouteGuideClient) GetFeature(ctx context.Context, point *Point) (string, error) {
-	feature, err := c.client.GetFeature(ctx, point.unWrap())
+	feature, err := c.client.GetFeature(ctx, point.unwrap())
 	if err != nil {
 		return "", err
 	}
@@ -34,7 +35,7 @@ func (c *RouteGuideClient) GetRouteDistance(ctx context.Context, points []Point)
 	}
 
 	for _, p := range points {
-		point := p.unWrap()
+		point := p.unwrap()
 		if err := stream.Send(point); err != nil {
 			return 0, err
 		}
@@ -49,7 +50,7 @@ func (c *RouteGuideClient) GetRouteDistance(ctx context.Context, points []Point)
 
 func (c *RouteGuideClient) ListFeatures(ctx context.Context, area Area) ([]string, error) {
 	var features []string
-	stream, err := c.client.ListFeatures(ctx, area.unWrap())
+	stream, err := c.client.ListFeatures(ctx, area.unwrap())
 	if err != nil {
 		return nil, err
 	}
@@ -68,35 +69,46 @@ func (c *RouteGuideClient) ListFeatures(ctx context.Context, area Area) ([]strin
 }
 
 func (c *RouteGuideClient) RouteChat(ctx context.Context, notes []Note) error {
-	log.Println("Starting Stream")
+	log.Println("Info: Starting Stream")
 	stream, err := c.client.RouteChat(ctx)
 	if err != nil {
 		return err
 	}
 
 	wait := make(chan struct{})
-	go func() error {
+	go func() {
 		for {
-			in, err := stream.Recv()
+			response, err := stream.Recv()
 			if err == io.EOF {
 				close(wait)
-				log.Println("Stream ended")
-				return nil
+				log.Println("Info: Stream ended")
+				return
 			}
 			if err != nil {
-				// FIXME: Why does this halt everything?
-				log.Printf("Recv Error: %v", err)
-				return err
+				log.Printf("Error: Stream error: %v", err)
+				return
 			}
-			log.Printf("Info: Received Note for %s: %s", in.GetName(), in.GetMessage())
+
+			// Handle returned errors
+			if response.GetError() != nil {
+				err := status.FromProto(response.GetError())
+				log.Printf("Error: %s, Code %s. Request: %v", err.Message(), err.Code(), err.Details())
+			}
+
+			// Handle normal responses
+			if response.GetRouteNote() != nil {
+				note := response.GetRouteNote()
+				log.Printf("Info: Note about %s for %v", note.Name, note.Message)
+			}
 		}
 	}()
 
 	for _, n := range notes {
-		note := n.unWrap()
+		note := n.unwrap()
+		log.Printf("Info: Sending Note: %v", note)
 		err := stream.Send(note)
 		if err != nil {
-			log.Printf("Send Error: %v", err)
+			log.Printf("Error: Stream error: %v", err)
 		}
 	}
 

@@ -8,7 +8,7 @@ type Point struct {
 	Longitude float64
 }
 
-func (p *Point) unWrap() *pb.Point {
+func (p *Point) unwrap() *pb.Point {
 	return &pb.Point{
 		Latitude:  p.Latitude,
 		Longitude: p.Longitude,
@@ -20,10 +20,10 @@ type Area struct {
 	BottomRight Point
 }
 
-func (a *Area) unWrap() *pb.Rectangle {
+func (a *Area) unwrap() *pb.Rectangle {
 	return &pb.Rectangle{
-		TopLeft:     a.TopLeft.unWrap(),
-		BottomRight: a.BottomRight.unWrap(),
+		TopLeft:     a.TopLeft.unwrap(),
+		BottomRight: a.BottomRight.unwrap(),
 	}
 }
 
@@ -33,10 +33,10 @@ type Note struct {
 	Message  string
 }
 
-func (n *Note) unWrap() *pb.RouteNote {
+func (n *Note) unwrap() *pb.RouteNote {
 	return &pb.RouteNote{
 		Name:     n.Name,
-		Location: n.Location.unWrap(),
+		Location: n.Location.unwrap(),
 		Message:  n.Message,
 	}
 }

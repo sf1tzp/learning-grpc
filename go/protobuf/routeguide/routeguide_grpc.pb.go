@@ -129,7 +129,7 @@ func (c *routeGuideClient) RouteChat(ctx context.Context, opts ...grpc.CallOptio
 
 type RouteGuide_RouteChatClient interface {
 	Send(*RouteNote) error
-	Recv() (*RouteNote, error)
+	Recv() (*RouteNoteResponse, error)
 	grpc.ClientStream
 }
 
@@ -141,8 +141,8 @@ func (x *routeGuideRouteChatClient) Send(m *RouteNote) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *routeGuideRouteChatClient) Recv() (*RouteNote, error) {
-	m := new(RouteNote)
+func (x *routeGuideRouteChatClient) Recv() (*RouteNoteResponse, error) {
+	m := new(RouteNoteResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -259,7 +259,7 @@ func _RouteGuide_RouteChat_Handler(srv interface{}, stream grpc.ServerStream) er
 }
 
 type RouteGuide_RouteChatServer interface {
-	Send(*RouteNote) error
+	Send(*RouteNoteResponse) error
 	Recv() (*RouteNote, error)
 	grpc.ServerStream
 }
@@ -268,7 +268,7 @@ type routeGuideRouteChatServer struct {
 	grpc.ServerStream
 }
 
-func (x *routeGuideRouteChatServer) Send(m *RouteNote) error {
+func (x *routeGuideRouteChatServer) Send(m *RouteNoteResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
