@@ -2,6 +2,7 @@
 import * as grpc from '@grpc/grpc-js';
 import { HelloRequest, HelloReply } from '../protobuf/helloworld/helloworld_pb';
 import { GreeterClient } from '../protobuf/helloworld/helloworld_grpc_pb';
+import { SurfaceCall } from '@grpc/grpc-js/build/src/call';
 
 type User = {
     name: string;
@@ -15,28 +16,29 @@ function main() {
     var client = new GreeterClient('localhost:50051', grpc.credentials.createInsecure());
     var user: User = { name: 'Typescript' };
 
-    var message = greet(client, user);
+    Hello(client, user)
+        .then((message) => console.log('In main: ', message)) // FIXME: See why this appears first in the log
+        .catch((error) => console.log("In main (error): ", error));
 
-    console.log('Greetings 1: ', message); // FIXME: See why this appears first in the log
     return
 }
 
-async function greet(client: any, user: User): Promise<string> {
+async function Hello(client: GreeterClient, user: User): Promise<string> {
     var helloRequest = new HelloRequest();
     helloRequest.setName(user.name);
 
     // FIXME: Learn how to capture this return value
-    var message: string = '';
-    await client.sayHello(helloRequest, function (err: grpc.ServiceError, response: HelloReply) {
+    var message: string = "";
+    client.sayHello(helloRequest, function (err: grpc.ServiceError, response: HelloReply) {
         if (err !== null) {
-            console.log('Error: %s', err.message)
+            console.log('Error: ', err.message)
             return
         }
-        message = response.getMessage();
-        console.log("Greetings 2: ", message);
+        console.log("In hello: ", response.getMessage());
+        return
     });
 
     // FIXME: message is not set here
-    return message;
+    return message
 }
 

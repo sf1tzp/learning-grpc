@@ -32,22 +32,23 @@ if (require.main === module) {
 function main() {
     var client = new helloworld_grpc_pb_1.GreeterClient('localhost:50051', grpc.credentials.createInsecure());
     var user = { name: 'Typescript' };
-    var message = greet(client, user);
-    console.log('Greetings 1: ', message); // FIXME: See why this appears first in the log
+    Hello(client, user)
+        .then((message) => console.log('In main: ', message)) // FIXME: See why this appears first in the log
+        .catch((error) => console.log("In main (error): ", error));
     return;
 }
-async function greet(client, user) {
+async function Hello(client, user) {
     var helloRequest = new helloworld_pb_1.HelloRequest();
     helloRequest.setName(user.name);
     // FIXME: Learn how to capture this return value
-    var message = '';
-    await client.sayHello(helloRequest, function (err, response) {
+    var message = "";
+    client.sayHello(helloRequest, function (err, response) {
         if (err !== null) {
-            console.log('Error: %s', err.message);
+            console.log('Error: ', err.message);
             return;
         }
-        message = response.getMessage();
-        console.log("Greetings 2: ", message);
+        console.log("In hello: ", response.getMessage());
+        return;
     });
     // FIXME: message is not set here
     return message;
