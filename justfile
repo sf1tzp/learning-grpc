@@ -1,6 +1,5 @@
-
-# Generate gRPC bindings for both projects
-generate: _generate-go _generate-rust
+# Generate gRPC bindings for all projects
+generate: _generate-go _generate-rust _generate-node
 
 _generate-go:
     #!/usr/bin/env bash
@@ -41,3 +40,32 @@ rust-server:
     #!/usr/bin/env bash
     cd rust
     cargo run --bin server
+
+_generate-node:
+    #!/usr/bin/env bash
+    set -e
+    grpc_tools_node_protoc \
+        --proto_path=protobuf \
+        --grpc_out=grpc_js:node/protobuf \
+        --js_out=import_style=commonjs,binary:./node/protobuf \
+        protobuf/**/*.proto
+    grpc_tools_node_protoc \
+        --plugin=protoc-gen-ts=./node/node_modules/.bin/protoc-gen-ts \
+        --proto_path=protobuf \
+        --ts_out=grpc_js:./node/protobuf \
+        protobuf/**/*.proto
+
+    mkdir -p node/dist
+
+    if [ $? -eq 0 ]; then echo "Node gRPC bindings generated successfully"; fi
+
+_build-typescript:
+    #!/usr/bin/env bash
+    cd node
+    npm install
+    tsc
+
+node-cilent: _build-typescript
+    #!/usr/bin/env bash
+    cd node
+    node dist/client.js
