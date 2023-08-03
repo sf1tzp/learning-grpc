@@ -32,16 +32,12 @@ if (require.main === module) {
 function main() {
     var client = new helloworld_grpc_pb_1.GreeterClient('localhost:50051', grpc.credentials.createInsecure());
     var user = { name: 'Typescript' };
-    Hello(client, user)
-        .then((message) => console.log('In main: ', message)) // FIXME: See why this appears first in the log
-        .catch((error) => console.log("In main (error): ", error));
+    Hello(client, user);
     return;
 }
-async function Hello(client, user) {
+function Hello(client, user) {
     var helloRequest = new helloworld_pb_1.HelloRequest();
     helloRequest.setName(user.name);
-    // FIXME: Learn how to capture this return value
-    var message = "";
     client.sayHello(helloRequest, function (err, response) {
         if (err !== null) {
             console.log('Error: ', err.message);
@@ -50,7 +46,5 @@ async function Hello(client, user) {
         console.log("In hello: ", response.getMessage());
         return;
     });
-    // FIXME: message is not set here
-    return message;
 }
 //# sourceMappingURL=client.js.map
