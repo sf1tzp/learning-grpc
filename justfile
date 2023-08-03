@@ -41,7 +41,7 @@ rust-server:
     cd rust
     cargo run --bin server
 
-_generate-node:
+_generate-node: _build-typescript
     #!/usr/bin/env bash
     set -e
     cd node
