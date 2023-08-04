@@ -41,7 +41,7 @@ rust-server:
     cd rust
     cargo run --bin server
 
-_generate-node: _build-typescript
+_generate-node:
     #!/usr/bin/env bash
     set -e
     cd node
@@ -56,6 +56,16 @@ _generate-node: _build-typescript
         --ts_out=grpc_js:protobuf \
         ../protobuf/**/*.proto
 
+    npx grpc_tools_node_protoc \
+        --proto_path=../protobuf \
+        --grpc_out=grpc_js:protobuf \
+        --js_out=import_style=commonjs,binary:protobuf \
+        ../protobuf/googleapis/google/rpc/*.proto
+    npx grpc_tools_node_protoc \
+        --plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts \
+        --proto_path=../protobuf \
+        --ts_out=grpc_js:protobuf \
+        ../protobuf/googleapis/google/rpc/*.proto
     if [ $? -eq 0 ]; then echo "Node gRPC bindings generated successfully"; fi
 
 _build-typescript:
