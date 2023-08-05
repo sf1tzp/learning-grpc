@@ -4,7 +4,7 @@ import { delay, random } from 'lodash'
 import { HelloRequest, HelloReply } from '../protobuf/helloworld/helloworld_pb'
 import { GreeterClient } from '../protobuf/helloworld/helloworld_grpc_pb'
 
-import { Point, Rectangle, Feature, RouteNote} from '../protobuf/routeguide/routeguide_pb'
+import { Point, Rectangle, Feature, RouteNote, RouteSummary} from '../protobuf/routeguide/routeguide_pb'
 import { RouteGuideClient } from '../protobuf/routeguide/routeguide_grpc_pb'
 
 type User = {
@@ -23,11 +23,11 @@ class Coordinate extends Point {
     }
 }
 
-class SearchArea {
-    rectangle: Rectangle = new Rectangle()
+class SearchArea extends Rectangle {
     constructor(topLeft: Coordinate, bottomRight: Coordinate) {
-        this.rectangle.setTopleft(topLeft)
-        this.rectangle.setBottomright(bottomRight)
+        super()
+        this.setTopleft(topLeft)
+        this.setBottomright(bottomRight)
     }
 }
 
@@ -107,6 +107,18 @@ function callRouteGuideAPIs() {
     var searchArea: SearchArea = new SearchArea(topLeft, bottomRight)
 
     GetFeaturesIn(routeClient, searchArea)
+        .then((features: Feature[]) => {
+            for (var i = 0; i < features.length; i++ ) {
+                let feature = features[i]
+                let name = feature.getName()
+                let location = feature.getLocation()
+                let coord = new Coordinate(location.getLatitude(), location.getLongitude())
+                console.log("Found feature", name, "at", coord.toString())
+            }
+        })
+        .catch((err: grpc.ServiceError) => {
+            console.log("Could not list features: ",  err.message)
+        })
 
     var coords: Coordinate[] = [
         new Coordinate(38.6270,-90.19940),
@@ -117,6 +129,12 @@ function callRouteGuideAPIs() {
     ]
 
     getRouteDistance(routeClient, coords)
+        .then((distance: number) => {
+            console.log("Route distance:", distance)
+        })
+        .catch((err: grpc.ServiceError) => {
+            console.log("Could not get route distance: ",  err.message)
+        })
 
 }
 
@@ -133,45 +151,48 @@ function GetFeatureAt(client: RouteGuideClient, coord: Coordinate): Promise<Feat
     })
 }
 
-function GetFeaturesIn(client: RouteGuideClient, area: SearchArea) {
-    var call: grpc.ClientReadableStream<Feature> = client.listFeatures(area.rectangle)
+function GetFeaturesIn(client: RouteGuideClient, area: SearchArea): Promise<Feature[]> {
+    return new Promise<Feature[]>((resolve, reject) => {
+        var features: Feature[] = []
+        var call: grpc.ClientReadableStream<Feature> = client.listFeatures(area)
+        call.on("data", (chunk: Feature) => {
+            features.push(chunk)
+        })
 
-    call.on("data", (chunk: Feature) => {
-        var name = chunk.getName()
-        var location = new Coordinate(chunk.getLocation().getLatitude(), chunk.getLocation().getLongitude())
-        console.log(name + " at " + location.toString())
+        call.on("error", (error: grpc.ServiceError) => {
+            client.close()
+            return reject(error)
+        })
+
+        call.on("close", () => {
+            return resolve(features)
+        })
     })
-
-    call.on("error", (error: grpc.ServiceError) => {
-        console.log("Error: ", error.message)
-        client.close()
-    })
-
-    call.on("close", () => console.log("Stream ended"))
 }
 
-function getRouteDistance(client: RouteGuideClient, coords: Coordinate[]) {
-    var call = client.recordRoute(function (error, response) {
-        if (error) {
-            console.log('Error: ', error.message)
-            return
-        } else {
-            console.log("Route Distance: ", response.getDistance())
+function getRouteDistance(client: RouteGuideClient, coords: Coordinate[]): Promise<number> {
+    return new Promise<number>((resolve, reject) => {
+        var call = client.recordRoute(function (error: grpc.ServiceError, response: RouteSummary) {
+            if (error) {
+                return reject(error)
+            } else {
+                return resolve(response.getDistance())
+            }
+        })
+
+        function requestBuilder(coord: Coordinate) {
+            return function(callback) {
+                call.write(coord)
+                delay(callback, random(50, 100))
+            }
         }
+
+        var requests = []
+        for (var i = 0; i < coords.length; i++) {
+            var coord = coords[i]
+            requests[i] = requestBuilder(coord)
+        }
+
+        async.series(requests, () => call.end())
     })
-
-    function requestBuilder(coord: Coordinate) {
-        return function(callback) {
-            call.write(coord)
-            delay(callback, random(50, 100))
-        }
-    }
-
-    var requests = []
-    for (var i = 0; i < coords.length; i++) {
-        var coord = coords[i]
-        requests[i] = requestBuilder(coord)
-    }
-
-    async.series(requests, () => call.end())
 }

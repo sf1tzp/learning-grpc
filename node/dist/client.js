@@ -41,11 +41,11 @@ class Coordinate extends routeguide_pb_1.Point {
         return "(" + this.getLatitude() + "," + this.getLongitude() + ")";
     }
 }
-class SearchArea {
-    rectangle = new routeguide_pb_1.Rectangle();
+class SearchArea extends routeguide_pb_1.Rectangle {
     constructor(topLeft, bottomRight) {
-        this.rectangle.setTopleft(topLeft);
-        this.rectangle.setBottomright(bottomRight);
+        super();
+        this.setTopleft(topLeft);
+        this.setBottomright(bottomRight);
     }
 }
 if (require.main === module) {
@@ -109,7 +109,19 @@ function callRouteGuideAPIs() {
     var topLeft = new Coordinate(50.030520, -126.800328);
     var bottomRight = new Coordinate(20.104646, -75.219728);
     var searchArea = new SearchArea(topLeft, bottomRight);
-    GetFeaturesIn(routeClient, searchArea);
+    GetFeaturesIn(routeClient, searchArea)
+        .then((features) => {
+        for (var i = 0; i < features.length; i++) {
+            let feature = features[i];
+            let name = feature.getName();
+            let location = feature.getLocation();
+            let coord = new Coordinate(location.getLatitude(), location.getLongitude());
+            console.log("Found feature", name, "at", coord.toString());
+        }
+    })
+        .catch((err) => {
+        console.log("Could not list features: ", err.message);
+    });
     var coords = [
         new Coordinate(38.6270, -90.19940),
         new Coordinate(39.7392, -104.9903),
@@ -117,7 +129,13 @@ function callRouteGuideAPIs() {
         new Coordinate(37.7749, -122.4194),
         new Coordinate(44.0570, -123.0869)
     ];
-    getRouteDistance(routeClient, coords);
+    getRouteDistance(routeClient, coords)
+        .then((distance) => {
+        console.log("Route distance:", distance);
+    })
+        .catch((err) => {
+        console.log("Could not get route distance: ", err.message);
+    });
 }
 // Route Guide APIs
 function GetFeatureAt(client, coord) {
@@ -133,39 +151,43 @@ function GetFeatureAt(client, coord) {
     });
 }
 function GetFeaturesIn(client, area) {
-    var call = client.listFeatures(area.rectangle);
-    call.on("data", (chunk) => {
-        var name = chunk.getName();
-        var location = new Coordinate(chunk.getLocation().getLatitude(), chunk.getLocation().getLongitude());
-        console.log(name + " at " + location.toString());
+    return new Promise((resolve, reject) => {
+        var features = [];
+        var call = client.listFeatures(area);
+        call.on("data", (chunk) => {
+            features.push(chunk);
+        });
+        call.on("error", (error) => {
+            client.close();
+            return reject(error);
+        });
+        call.on("close", () => {
+            return resolve(features);
+        });
     });
-    call.on("error", (error) => {
-        console.log("Error: ", error.message);
-        client.close();
-    });
-    call.on("close", () => console.log("Stream ended"));
 }
 function getRouteDistance(client, coords) {
-    var call = client.recordRoute(function (error, response) {
-        if (error) {
-            console.log('Error: ', error.message);
-            return;
+    return new Promise((resolve, reject) => {
+        var call = client.recordRoute(function (error, response) {
+            if (error) {
+                return reject(error);
+            }
+            else {
+                return resolve(response.getDistance());
+            }
+        });
+        function requestBuilder(coord) {
+            return function (callback) {
+                call.write(coord);
+                (0, lodash_1.delay)(callback, (0, lodash_1.random)(50, 100));
+            };
         }
-        else {
-            console.log("Route Distance: ", response.getDistance());
+        var requests = [];
+        for (var i = 0; i < coords.length; i++) {
+            var coord = coords[i];
+            requests[i] = requestBuilder(coord);
         }
+        async.series(requests, () => call.end());
     });
-    function requestBuilder(coord) {
-        return function (callback) {
-            call.write(coord);
-            (0, lodash_1.delay)(callback, (0, lodash_1.random)(50, 100));
-        };
-    }
-    var requests = [];
-    for (var i = 0; i < coords.length; i++) {
-        var coord = coords[i];
-        requests[i] = requestBuilder(coord);
-    }
-    async.series(requests, () => call.end());
 }
 //# sourceMappingURL=client.js.map
