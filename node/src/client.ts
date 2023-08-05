@@ -35,10 +35,7 @@ if (require.main === module) {
 }
 
 function main() {
-    var helloClient = new GreeterClient('localhost:50051', grpc.credentials.createInsecure())
-    var user: User = { name: 'Typescript' }
-
-    Hello(helloClient, user)
+    callHelloAPIs()
 
     var routeClient = new RouteGuideClient('localhost:50051', grpc.credentials.createInsecure())
     var stl: Coordinate = new Coordinate(38.6270,-90.19940)
@@ -64,17 +61,44 @@ function main() {
     return
 }
 
-function Hello(client: GreeterClient, user: User) {
+async function callHelloAPIs() {
+    var helloClient = new GreeterClient('localhost:50051', grpc.credentials.createInsecure())
+    var user: User = { name: 'Typescript' }
+
+    // Here we call Hello asynchronously - a branch is called when the promise is resolved
+    Hello(helloClient, user)
+        .then((message) => {
+            console.log("Eventually got response: ", message)
+        })
+        .catch((err) => {
+            helloClient.close()
+            console.log("Eventually got error: ", err)
+        })
+
+    // Synchronous Usage - Here we block with 'await' until the promise resolves
+    var message = await Hello(helloClient, user)
+        .catch((err) => {
+            helloClient.close()
+            console.log("Waited for error: ", err)
+        })
+
+    if (message !== undefined) {
+        console.log("Waited for message: ", message)
+    }
+}
+
+function Hello(client: GreeterClient, user: User): Promise<string> {
     var helloRequest = new HelloRequest()
     helloRequest.setName(user.name)
 
-    client.sayHello(helloRequest, function (err: grpc.ServiceError, response: HelloReply) {
-        if (err !== null) {
-            console.log('Error: ', err.message)
-            client.close()
-        } else {
-            console.log("In hello: ", response.getMessage())
-        }
+    return new Promise<string>((resolve, reject) => {
+        client.sayHello(helloRequest, function (err: grpc.ServiceError, response: HelloReply) {
+            if (err !== null) {
+                return reject(err.message)
+            } else {
+                return resolve(response.getMessage())
+            }
+        })
     })
 }
 

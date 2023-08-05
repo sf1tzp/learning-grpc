@@ -41,19 +41,17 @@ class Coordinate {
     }
 }
 class SearchArea {
-    area = new routeguide_pb_1.Rectangle();
+    rectangle = new routeguide_pb_1.Rectangle();
     constructor(topLeft, bottomRight) {
-        this.area.setTopleft(topLeft.point);
-        this.area.setBottomright(bottomRight.point);
+        this.rectangle.setTopleft(topLeft.point);
+        this.rectangle.setBottomright(bottomRight.point);
     }
 }
 if (require.main === module) {
     main();
 }
 function main() {
-    var helloClient = new helloworld_grpc_pb_1.GreeterClient('localhost:50051', grpc.credentials.createInsecure());
-    var user = { name: 'Typescript' };
-    Hello(helloClient, user);
+    callHelloAPIs();
     var routeClient = new routeguide_grpc_pb_1.RouteGuideClient('localhost:50051', grpc.credentials.createInsecure());
     var stl = new Coordinate(38.6270, -90.19940);
     GetFeatureAt(routeClient, stl);
@@ -71,19 +69,43 @@ function main() {
     getRouteDistance(routeClient, coords);
     return;
 }
+async function callHelloAPIs() {
+    var helloClient = new helloworld_grpc_pb_1.GreeterClient('localhost:50051', grpc.credentials.createInsecure());
+    var user = { name: 'Typescript' };
+    // Here we call Hello asynchronously - a branch is called when the promise is resolved
+    Hello(helloClient, user)
+        .then((message) => {
+        console.log("Eventually got response: ", message);
+    })
+        .catch((err) => {
+        helloClient.close();
+        console.log("Eventually got error: ", err);
+    });
+    // Synchronous Usage - Here we block with 'await' until the promise resolves
+    var message = await Hello(helloClient, user)
+        .catch((err) => {
+        helloClient.close();
+        console.log("Waited for error: ", err);
+    });
+    if (message !== undefined) {
+        console.log("Waited for message: ", message);
+    }
+}
 function Hello(client, user) {
     var helloRequest = new helloworld_pb_1.HelloRequest();
     helloRequest.setName(user.name);
-    client.sayHello(helloRequest, function (err, response) {
-        if (err !== null) {
-            console.log('Error: ', err.message);
-            client.close();
-        }
-        else {
-            console.log("In hello: ", response.getMessage());
-        }
+    return new Promise((resolve, reject) => {
+        client.sayHello(helloRequest, function (err, response) {
+            if (err !== null) {
+                return reject(err.message);
+            }
+            else {
+                return resolve(response.getMessage());
+            }
+        });
     });
 }
+// Route Guide APIs
 function GetFeatureAt(client, coord) {
     var foo = client.getFeature(coord.point, function (err, response) {
         if (err !== null) {
@@ -96,7 +118,7 @@ function GetFeatureAt(client, coord) {
     });
 }
 function GetFeaturesIn(client, area) {
-    var call = client.listFeatures(area.area);
+    var call = client.listFeatures(area.rectangle);
     call.on("data", (chunk) => {
         var name = chunk.getName();
         var location = new Coordinate(chunk.getLocation().getLatitude(), chunk.getLocation().getLongitude());
