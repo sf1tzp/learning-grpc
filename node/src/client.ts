@@ -11,22 +11,23 @@ type User = {
     name: string
 }
 
-class Coordinate {
-    point: Point = new Point()
+// Use a new classes for convenient constructors and to override toString()
+class Coordinate extends Point {
     constructor(latitude: number, longitude: number) {
-        this.point.setLatitude(latitude)
-        this.point.setLongitude(longitude)
+        super()
+        this.setLatitude(latitude)
+        this.setLongitude(longitude)
     }
     toString() {
-        return "(" + this.point.getLatitude() + "," + this.point.getLongitude() + ")"
+        return "(" + this.getLatitude() + "," + this.getLongitude() + ")"
     }
 }
 
 class SearchArea {
     rectangle: Rectangle = new Rectangle()
     constructor(topLeft: Coordinate, bottomRight: Coordinate) {
-        this.rectangle.setTopleft(topLeft.point)
-        this.rectangle.setBottomright(bottomRight.point)
+        this.rectangle.setTopleft(topLeft)
+        this.rectangle.setBottomright(bottomRight)
     }
 }
 
@@ -37,28 +38,7 @@ if (require.main === module) {
 function main() {
     callHelloAPIs()
 
-    var routeClient = new RouteGuideClient('localhost:50051', grpc.credentials.createInsecure())
-    var stl: Coordinate = new Coordinate(38.6270,-90.19940)
-
-    GetFeatureAt(routeClient, stl)
-
-    var topLeft: Coordinate = new Coordinate(50.030520, -126.800328)
-    var bottomRight: Coordinate = new Coordinate(20.104646,  -75.219728)
-    var searchArea: SearchArea = new SearchArea(topLeft, bottomRight)
-
-    GetFeaturesIn(routeClient, searchArea)
-
-    var coords: Coordinate[] = [
-        new Coordinate(38.6270,-90.19940),
-        new Coordinate(39.7392,-104.9903),
-        new Coordinate(32.7157,-117.1611),
-        new Coordinate(37.7749,-122.4194),
-        new Coordinate(44.0570,-123.0869)
-    ]
-
-    getRouteDistance(routeClient, coords)
-
-    return
+    callRouteGuideAPIs()
 }
 
 async function callHelloAPIs() {
@@ -102,15 +82,54 @@ function Hello(client: GreeterClient, user: User): Promise<string> {
     })
 }
 
+function callRouteGuideAPIs() {
+    var routeClient = new RouteGuideClient('localhost:50051', grpc.credentials.createInsecure())
+    var stl: Coordinate = new Coordinate(38.6270,-90.19940)
+
+    GetFeatureAt(routeClient, stl)
+        .then((feature: Feature) => {
+            let name = feature.getName()
+            let location = feature.getLocation() as Coordinate
+            // FIXME: Why doesn't this use Coordinate's toString()?
+            // console.log("Feature at: " + location.toString() + " is " + name)
+            let coord = new Coordinate(
+                location.getLatitude(),
+                location.getLongitude()
+            )
+            console.log("Feature at:", coord.toString(), "is", name)
+        })
+        .catch((err: grpc.ServiceError) => {
+            console.log("Could not get feature: ",  err.message)
+        })
+
+    var topLeft: Coordinate = new Coordinate(50.030520, -126.800328)
+    var bottomRight: Coordinate = new Coordinate(20.104646,  -75.219728)
+    var searchArea: SearchArea = new SearchArea(topLeft, bottomRight)
+
+    GetFeaturesIn(routeClient, searchArea)
+
+    var coords: Coordinate[] = [
+        new Coordinate(38.6270,-90.19940),
+        new Coordinate(39.7392,-104.9903),
+        new Coordinate(32.7157,-117.1611),
+        new Coordinate(37.7749,-122.4194),
+        new Coordinate(44.0570,-123.0869)
+    ]
+
+    getRouteDistance(routeClient, coords)
+
+}
+
 // Route Guide APIs
-function GetFeatureAt(client: RouteGuideClient, coord: Coordinate) {
-    var foo = client.getFeature(coord.point, function (err: grpc.ServiceError, response: Feature) {
-        if (err !== null) {
-            console.log('Error: ', err.message)
-            client.close()
-        } else {
-            console.log("Feature at: " + coord.toString() + " is " + response.getName())
-        }
+function GetFeatureAt(client: RouteGuideClient, coord: Coordinate): Promise<Feature> {
+    return new Promise<Feature>((resolve, reject) => {
+        client.getFeature(coord, function (err: grpc.ServiceError, response: Feature) {
+            if (err !== null) {
+                return reject(err)
+            } else {
+                return resolve(response)
+            }
+        })
     })
 }
 
@@ -143,7 +162,7 @@ function getRouteDistance(client: RouteGuideClient, coords: Coordinate[]) {
 
     function requestBuilder(coord: Coordinate) {
         return function(callback) {
-            call.write(coord.point)
+            call.write(coord)
             delay(callback, random(50, 100))
         }
     }
