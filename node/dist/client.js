@@ -65,13 +65,13 @@ async function callHelloAPIs() {
     })
         .catch((err) => {
         helloClient.close();
-        console.log("Eventually got error: ", err);
+        console.log("Eventually got error: ", err.message);
     });
     // Synchronous Usage - Here we block with 'await' until the promise resolves
     var message = await Hello(helloClient, user)
         .catch((err) => {
         helloClient.close();
-        console.log("Waited for error: ", err);
+        console.log("Waited for error: ", err.message);
     });
     if (message !== undefined) {
         console.log("Waited for message: ", message);
@@ -83,7 +83,7 @@ function Hello(client, user) {
     return new Promise((resolve, reject) => {
         client.sayHello(helloRequest, function (err, response) {
             if (err !== null) {
-                return reject(err.message);
+                return reject(err);
             }
             else {
                 return resolve(response.getMessage());

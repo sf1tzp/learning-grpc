@@ -47,19 +47,19 @@ async function callHelloAPIs() {
 
     // Here we call Hello asynchronously - a branch is called when the promise is resolved
     Hello(helloClient, user)
-        .then((message) => {
+        .then((message: string) => {
             console.log("Eventually got response: ", message)
         })
-        .catch((err) => {
+        .catch((err: grpc.ServiceError) => {
             helloClient.close()
-            console.log("Eventually got error: ", err)
+            console.log("Eventually got error: ", err.message)
         })
 
     // Synchronous Usage - Here we block with 'await' until the promise resolves
     var message = await Hello(helloClient, user)
-        .catch((err) => {
+        .catch((err: grpc.ServiceError) => {
             helloClient.close()
-            console.log("Waited for error: ", err)
+            console.log("Waited for error: ", err.message)
         })
 
     if (message !== undefined) {
@@ -74,7 +74,7 @@ function Hello(client: GreeterClient, user: User): Promise<string> {
     return new Promise<string>((resolve, reject) => {
         client.sayHello(helloRequest, function (err: grpc.ServiceError, response: HelloReply) {
             if (err !== null) {
-                return reject(err.message)
+                return reject(err)
             } else {
                 return resolve(response.getMessage())
             }
