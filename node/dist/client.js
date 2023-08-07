@@ -94,7 +94,7 @@ function Hello(client, user) {
 function callRouteGuideAPIs() {
     var routeClient = new routeguide_grpc_pb_1.RouteGuideClient('localhost:50051', grpc.credentials.createInsecure());
     var stl = new Coordinate(38.6270, -90.19940);
-    GetFeatureAt(routeClient, stl)
+    getFeatureAt(routeClient, stl)
         .then((feature) => {
         let name = feature.getName();
         let location = feature.getLocation();
@@ -109,7 +109,7 @@ function callRouteGuideAPIs() {
     var topLeft = new Coordinate(50.030520, -126.800328);
     var bottomRight = new Coordinate(20.104646, -75.219728);
     var searchArea = new SearchArea(topLeft, bottomRight);
-    GetFeaturesIn(routeClient, searchArea)
+    getFeaturesIn(routeClient, searchArea)
         .then((features) => {
         for (var i = 0; i < features.length; i++) {
             let feature = features[i];
@@ -136,9 +136,21 @@ function callRouteGuideAPIs() {
         .catch((err) => {
         console.log("Could not get route distance: ", err.message);
     });
+    getFeatureNotes(routeClient, ["Saint Louis", "Las Vegas", "Seattle"])
+        .then((notes) => {
+        for (const [name, messages] of notes) {
+            console.log("Notes about " + name + ":");
+            for (var i = 0; i < messages.length; i++) {
+                console.log(messages[i]);
+            }
+        }
+    })
+        .catch((err) => {
+        console.log("Could not get feature notes: ", err.message);
+    });
 }
 // Route Guide APIs
-function GetFeatureAt(client, coord) {
+function getFeatureAt(client, coord) {
     return new Promise((resolve, reject) => {
         client.getFeature(coord, function (err, response) {
             if (err !== null) {
@@ -150,7 +162,7 @@ function GetFeatureAt(client, coord) {
         });
     });
 }
-function GetFeaturesIn(client, area) {
+function getFeaturesIn(client, area) {
     return new Promise((resolve, reject) => {
         var features = [];
         var call = client.listFeatures(area);
@@ -188,6 +200,40 @@ function getRouteDistance(client, coords) {
             requests[i] = requestBuilder(coord);
         }
         async.series(requests, () => call.end());
+    });
+}
+function getFeatureNotes(client, feature_names) {
+    return new Promise((resolve, reject) => {
+        var notes = new Map();
+        var call = client.routeChat();
+        for (var i = 0; i < feature_names.length; i++) {
+            let name = feature_names[i];
+            let routeNote = new routeguide_pb_1.RouteNote();
+            routeNote.setName(name);
+            call.write(routeNote);
+        }
+        call.end();
+        call.on("data", (chunk) => {
+            if (chunk.getRoutenote()) {
+                let note = chunk.getRoutenote();
+                let name = note.getName();
+                let message = note.getMessage();
+                if (!notes.has(name)) {
+                    notes.set(name, []); // Initialize an empty array
+                }
+                notes.get(name).push(message);
+            }
+            if (chunk.getError()) {
+                let error = chunk.getError();
+                console.log("Error getting notes:", error.getMessage());
+            }
+        });
+        call.on("close", () => {
+            return resolve(notes);
+        });
+        call.on("error", (error) => {
+            return reject(error);
+        });
     });
 }
 //# sourceMappingURL=client.js.map

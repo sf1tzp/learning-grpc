@@ -4,8 +4,9 @@ import { delay, random } from 'lodash'
 import { HelloRequest, HelloReply } from '../protobuf/helloworld/helloworld_pb'
 import { GreeterClient } from '../protobuf/helloworld/helloworld_grpc_pb'
 
-import { Point, Rectangle, Feature, RouteNote, RouteSummary} from '../protobuf/routeguide/routeguide_pb'
+import { Point, Rectangle, Feature, RouteNote, RouteSummary, RouteNoteResponse} from '../protobuf/routeguide/routeguide_pb'
 import { RouteGuideClient } from '../protobuf/routeguide/routeguide_grpc_pb'
+import { mapUriDefaultScheme } from '@grpc/grpc-js/build/src/resolver'
 
 type User = {
     name: string
@@ -86,7 +87,7 @@ function callRouteGuideAPIs() {
     var routeClient = new RouteGuideClient('localhost:50051', grpc.credentials.createInsecure())
     var stl: Coordinate = new Coordinate(38.6270,-90.19940)
 
-    GetFeatureAt(routeClient, stl)
+    getFeatureAt(routeClient, stl)
         .then((feature: Feature) => {
             let name = feature.getName()
             let location = feature.getLocation() as Coordinate
@@ -106,7 +107,7 @@ function callRouteGuideAPIs() {
     var bottomRight: Coordinate = new Coordinate(20.104646,  -75.219728)
     var searchArea: SearchArea = new SearchArea(topLeft, bottomRight)
 
-    GetFeaturesIn(routeClient, searchArea)
+    getFeaturesIn(routeClient, searchArea)
         .then((features: Feature[]) => {
             for (var i = 0; i < features.length; i++ ) {
                 let feature = features[i]
@@ -136,10 +137,22 @@ function callRouteGuideAPIs() {
             console.log("Could not get route distance: ",  err.message)
         })
 
+    getFeatureNotes(routeClient, ["Saint Louis", "Las Vegas", "Seattle"])
+        .then((notes: Map<string, string[]>) => {
+            for (const [name, messages] of notes) {
+                console.log("Notes about " + name + ":")
+                for (var i = 0; i < messages.length; i++) {
+                    console.log(messages[i])
+                }
+            }
+        })
+        .catch((err: grpc.ServiceError) => {
+            console.log("Could not get feature notes: ",  err.message)
+        })
 }
 
 // Route Guide APIs
-function GetFeatureAt(client: RouteGuideClient, coord: Coordinate): Promise<Feature> {
+function getFeatureAt(client: RouteGuideClient, coord: Coordinate): Promise<Feature> {
     return new Promise<Feature>((resolve, reject) => {
         client.getFeature(coord, function (err: grpc.ServiceError, response: Feature) {
             if (err !== null) {
@@ -151,7 +164,7 @@ function GetFeatureAt(client: RouteGuideClient, coord: Coordinate): Promise<Feat
     })
 }
 
-function GetFeaturesIn(client: RouteGuideClient, area: SearchArea): Promise<Feature[]> {
+function getFeaturesIn(client: RouteGuideClient, area: SearchArea): Promise<Feature[]> {
     return new Promise<Feature[]>((resolve, reject) => {
         var features: Feature[] = []
         var call: grpc.ClientReadableStream<Feature> = client.listFeatures(area)
@@ -194,5 +207,43 @@ function getRouteDistance(client: RouteGuideClient, coords: Coordinate[]): Promi
         }
 
         async.series(requests, () => call.end())
+    })
+}
+
+function getFeatureNotes(client: RouteGuideClient, feature_names: string[]): Promise<Map<string, string[]>> {
+    return new Promise((resolve, reject) => {
+        var notes = new Map<string, string[]>()
+        var call = client.routeChat()
+
+        for (var i = 0; i < feature_names.length; i++ ) {
+            let name = feature_names[i]
+            let routeNote = new RouteNote()
+            routeNote.setName(name)
+            call.write(routeNote)
+        }
+        call.end()
+
+        call.on("data", (chunk: RouteNoteResponse) => {
+            if (chunk.getRoutenote()) {
+                let note = chunk.getRoutenote()
+                let name = note.getName()
+                let message = note.getMessage()
+                if (!notes.has(name)) {
+                    notes.set(name, []) // Initialize an empty array
+                }
+                notes.get(name).push(message)
+            }
+            if (chunk.getError()) {
+                let error = chunk.getError()
+                console.log("Error getting notes:", error.getMessage())
+            }
+        })
+        call.on("close", () => {
+            return resolve(notes)
+        })
+        call.on("error", (error: grpc.ServiceError) => {
+            return reject(error)
+        })
+
     })
 }
